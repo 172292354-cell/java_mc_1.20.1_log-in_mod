@@ -1,0 +1,17 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="Custom (Non-Commercial + ShareAlike) - 禁止商用，修改后必须以相同协议开源"
+
+[[mods]]
+modId="loginmod"
+version="1.0.0"
+displayName="LoginMod"
+authors="LoginMod Team"
+description='''
+A server-side authentication mod providing login/register
+without any client-side modifications.
+'''
+
+[dependencies.loginmod]
+    minecraft="[1.20.1,1.21)"
+    forge="[47,)"

@@ -1,0 +1,28 @@
+# ============ Gradle ============
+.gradle/
+build/
+out/
+*.jar
+
+# ============ IDE ============
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+
+# ============ Eclipse ============
+eclipse/
+eclipse-output/
+run/
+
+# ============ 系统 & 运行时 ============
+.DS_Store
+Thumbs.db
+*.log
+build_output.log
+hs_err_pid*
