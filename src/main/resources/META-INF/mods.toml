@@ -1,6 +1,6 @@
 modLoader="javafml"
 loaderVersion="[47,)"
-license="Custom (Non-Commercial + ShareAlike) - 禁止商用，修改后必须以相同协议开源"
+license="CC BY-NC-SA 4.0 (Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International) — 详见项目根目录 LICENSE 文件"
 
 [[mods]]
 modId="loginmod"
