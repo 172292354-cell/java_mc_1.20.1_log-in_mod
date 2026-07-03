@@ -22,64 +22,12 @@
 
 ---
 
-## 🔐 密码加密原理（「千次迭代」详细说明）
+## 🔐 密码安全说明
 
-为了避免别人误解「只做了 1 次 SHA-256」，这里把加密流程完整写清楚。源码位于
-`src/main/java/com/loginmod/auth/AuthData.java` 中的 `hashPassword` 方法。
-
-### 完整流程
-
-```
-步骤 1（第 1 次哈希）:
-    hash_1 = SHA-256( salt + 玩家密码 )
-
-步骤 2（第 2 ~ 1000 次，共 999 次迭代）:
-    hash_2   = SHA-256( hash_1 )
-    hash_3   = SHA-256( hash_2 )
-    ...
-    hash_1000 = SHA-256( hash_999 )
-
-最终存储值（保存到 JSON 的 hashedPassword 字段）:
-    Base64( hash_1000 )
-```
-
-### 在代码里对应位置（AuthData.java）
-
-```java
-// 第 1 次：把 salt 混入密码一起做 SHA-256
-digest.reset();
-digest.update(salt.getBytes(StandardCharsets.UTF_8));
-byte[] hashed = digest.digest(password.getBytes(StandardCharsets.UTF_8));
-
-// 第 2 ~ 1000 次：把上一轮的哈希结果再哈希，共重复 999 次
-// 这样总的哈希迭代次数 = 1 + 999 = 1000 次
-for (int i = 0; i < 999; i++) {
-    digest.reset();
-    hashed = digest.digest(hashed);
-}
-// 最终以 Base64 编码存入 JSON
-```
-
-所以 **1000 次迭代 = 外层 1 次 + for 循环里再做 999 次**。
-
-### 为什么要做千次迭代？（Key Stretching / 密钥拉伸）
-
-| 场景 | 只做 1 次 SHA-256 | 做 1000 次 SHA-256 |
-|------|-------------------|--------------------|
-| 普通玩家登录耗时 | 约 0.01 毫秒 | 约 1 毫秒（几乎无感知） |
-| 攻击者每秒能尝试的密码数 | 几亿 ~ 几十亿次 | 几百万次（**被放大 1000 倍的防御**） |
-| 原始密码是否能从存储值还原 | 不能，但暴力破解成本低 | 不能，且暴力破解成本提高 1000 倍 |
-
-千次迭代让「攻击者猜密码」的成本乘上 1000，但对「真正知道密码的玩家」来说只是多花了不到 1 毫秒。这是一种被称为 **key stretching（密钥拉伸）** 的通用安全做法。
-
-### 其他安全细节
-
-- **每个玩家一个独立的 salt**（16 字节随机数，`SecureRandom` 生成），
-  即使两个玩家设置了同样的密码，最终存储值也完全不同。
-- **常量时间比较**（`slowEquals`）：无论密码对不对，比较的循环次数固定，
-  防止攻击者通过响应时间差异推断出密码的第几位对得上。
-- **原始密码不会以任何形式写入磁盘**，`loginmod_accounts.json` 中只有
-  `salt` 和 `hashedPassword` 两个字段。
+- **加密方式**：每个玩家独立 16 字节随机 salt + SHA-256 哈希，共 **1000 次迭代**（key stretching / 密钥拉伸），让暴力破解成本提高 1000 倍而玩家只多花不到 1 毫秒。
+- **存储内容**：JSON 中只有 `salt` 和 `hashedPassword`（Base64），**原始密码绝不写入磁盘**。
+- **其他细节**：常量时间比较（防时序侧信道攻击），相同密码因 salt 不同产生完全不同的存储值。
+- 源码见 [AuthData.java → hashPassword / verifyPassword](src/main/java/com/loginmod/auth/AuthData.java)。
 
 ---
 
