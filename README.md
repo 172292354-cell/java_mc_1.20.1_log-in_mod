@@ -9,42 +9,24 @@
 
 ---
 
-## 📦 功能
+## 🎮 游戏内命令与功能总览
 
-| 功能 | 说明 |
-|------|------|
-| 玩家注册 | 首次进入服务器时引导玩家使用 `/register` 注册账号 |
-| 玩家登录 | 已注册玩家每次进入服务器需用 `/login` 登录 |
-| 密码修改 | 已登录玩家可使用 `/changepassword` 修改密码 |
-| 未登录行为限制 | 未登录玩家无法破坏方块 / 放置方块 / 发送聊天消息 / 执行其他命令，并且会被限制在出生点附近 |
-| 安全存储 | 密码以 salt + SHA-256 + 1000 次迭代哈希的形式存储，永远不会明文写入磁盘 |
-| 并发安全 | 使用 `ConcurrentHashMap` + `synchronized` 读写方法 |
+| 命令 | 功能说明 | 要求 |
+|------|---------|------|
+| `/register <密码> <确认密码>` | 玩家首次进入服务器时注册新账号 | 未注册玩家 |
+| `/login <密码>` | 已注册玩家每次进入服务器后登录 | 已注册但未登录玩家 |
+| `/changepassword <旧密码> <新密码> <确认新密码>` | 玩家修改自己的登录密码 | 已登录玩家 |
+| `/loginmod pwdlen` | 查看当前密码长度限制 | 管理员（OP，permission level ≥ 2） |
+| `/loginmod pwdlen <最小> <最大>` | 设置新的密码长度限制，范围 1–128 | 管理员（OP，permission level ≥ 2） |
 
----
+**附加说明：**
 
-## 🔐 密码安全说明
-
-- **加密方式**：每个玩家独立 16 字节随机 salt + SHA-256 哈希，共 **1000 次迭代**（key stretching / 密钥拉伸），让暴力破解成本提高 1000 倍而玩家只多花不到 1 毫秒。
-- **存储内容**：JSON 中只有 `salt` 和 `hashedPassword`（Base64），**原始密码绝不写入磁盘**。
-- **其他细节**：常量时间比较（防时序侧信道攻击），相同密码因 salt 不同产生完全不同的存储值。
-- 源码见 [AuthData.java → hashPassword / verifyPassword](src/main/java/com/loginmod/auth/AuthData.java)。
-
----
-
-## 🎮 游戏内命令
-
-| 命令 | 说明 | 要求 |
-|------|------|------|
-| `/register <密码> <确认密码>` | 注册新账号 | 未注册玩家 |
-| `/login <密码>` | 登录 | 已注册但未登录玩家 |
-| `/changepassword <旧密码> <新密码> <确认新密码>` | 修改密码 | 已登录玩家 |
-| `/loginmod pwdlen` | **查看当前密码长度限制** | 管理员（OP，permission level ≥ 2） |
-| `/loginmod pwdlen <最小> <最大>` | **设置新的密码长度限制**，范围 1–128 | 管理员（OP，permission level ≥ 2） |
-
-- 密码长度默认为 **4 – 32** 个字符（管理员可通过 `/loginmod pwdlen` 动态调整）
+- 密码长度默认为 **4 – 32** 个字符（管理员可通过 `/loginmod pwdlen` 动态调整，修改后自动保存到 `loginmod/loginmod_config.json`，下次开服自动生效）
 - 两次输入的密码必须一致
-- 登录失败会有提示，不会踢出玩家
-- 管理员命令设置后会**自动保存**到服务器目录下的 `loginmod/loginmod_config.json`，下次开服自动生效
+- **安全存储**：密码使用「每人独立 16 字节 salt + SHA-256 + **1000 次迭代哈希**」加密，JSON 中只有 `salt` 和 `hashedPassword`，**原始密码绝不写入磁盘**
+- 未登录玩家无法破坏方块 / 放置方块 / 发送聊天消息 / 执行其他命令，位置被限制在出生点附近
+- 登录失败只会收到文字提示，不会被踢出
+- 服务器账户数据保存在 `loginmod/loginmod_accounts.json`，使用 `ConcurrentHashMap` + `synchronized` 保证并发读写安全
 
 ---
 
