@@ -111,9 +111,9 @@ for (int i = 0; i < 999; i++) {
 
 ```
 📦 蓝奏云网盘下载地址：
-https://wwamp.lanzouu.com/iwrIg3u6fzrc
+https://wwamp.lanzouu.com/i62SO3u6hkkh
 
-提取码：ffy4
+提取码：8j5c
 ```
 
 > 如果上面的链接在你的地区打不开，可以在浏览器里手动复制粘贴网址；或联系作者更新备用链接。
