@@ -3,6 +3,7 @@ package com.loginmod.command;
 import com.loginmod.auth.Account;
 import com.loginmod.auth.AuthData;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -69,6 +70,44 @@ public class AuthCommands {
                     )
                 )
         );
+
+        // ================= 管理员专用命令：/loginmod =================
+        //  权限要求：permission level >= 2（即服务器 OP 或等价权限）
+        //  子命令：
+        //    /loginmod pwdlen             —— 查看当前密码长度限制
+        //    /loginmod pwdlen <最小> <最大> —— 设置新的密码长度限制（自动保存到配置）
+        dispatcher.register(
+            Commands.literal("loginmod")
+                .requires(src -> src.hasPermission(2))
+                .then(Commands.literal("pwdlen")
+                    // 不带参数：显示当前限制
+                    .executes(ctx -> {
+                        CommandSourceStack src = ctx.getSource();
+                        String msg = "当前密码长度限制为 " + AuthData.getPasswordLengthRange() + " 位（最小 "
+                            + AuthData.getMinPasswordLength() + "，最大 " + AuthData.getMaxPasswordLength() + "）。";
+                        src.sendSuccess(() -> Component.literal(msg).withStyle(ChatFormatting.AQUA), true);
+                        return 1;
+                    })
+                    // 带两个整数参数：设置新的限制
+                    .then(Commands.argument("min", IntegerArgumentType.integer(1, 128))
+                        .then(Commands.argument("max", IntegerArgumentType.integer(1, 128))
+                            .executes(ctx -> {
+                                CommandSourceStack src = ctx.getSource();
+                                int min = IntegerArgumentType.getInteger(ctx, "min");
+                                int max = IntegerArgumentType.getInteger(ctx, "max");
+                                String result = AuthData.setPasswordLengthLimits(min, max);
+                                boolean success = result.startsWith("已设置");
+                                if (success) {
+                                    src.sendSuccess(() -> Component.literal("[LoginMod] " + result).withStyle(ChatFormatting.GREEN), true);
+                                } else {
+                                    src.sendFailure(Component.literal("[LoginMod] " + result).withStyle(ChatFormatting.RED));
+                                }
+                                return success ? 1 : 0;
+                            })
+                        )
+                    )
+                )
+        );
     }
 
     private static int handleRegister(ServerPlayer player, String password, String confirm) {
@@ -82,7 +121,7 @@ public class AuthCommands {
             return 0;
         }
         if (!AuthData.isValidPassword(password)) {
-            send(player, "密码长度必须为 4-32 个字符！", ChatFormatting.RED);
+            send(player, "密码长度必须为 " + AuthData.getPasswordLengthRange() + " 个字符！", ChatFormatting.RED);
             return 0;
         }
         String salt = AuthData.generateSalt();
@@ -134,7 +173,7 @@ public class AuthCommands {
             return 0;
         }
         if (!AuthData.isValidPassword(newPwd)) {
-            send(player, "新密码长度必须为 4-32 个字符！", ChatFormatting.RED);
+            send(player, "新密码长度必须为 " + AuthData.getPasswordLengthRange() + " 个字符！", ChatFormatting.RED);
             return 0;
         }
         String newSalt = AuthData.generateSalt();

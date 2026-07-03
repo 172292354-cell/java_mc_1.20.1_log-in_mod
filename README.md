@@ -90,10 +90,13 @@ for (int i = 0; i < 999; i++) {
 | `/register <密码> <确认密码>` | 注册新账号 | 未注册玩家 |
 | `/login <密码>` | 登录 | 已注册但未登录玩家 |
 | `/changepassword <旧密码> <新密码> <确认新密码>` | 修改密码 | 已登录玩家 |
+| `/loginmod pwdlen` | **查看当前密码长度限制** | 管理员（OP，permission level ≥ 2） |
+| `/loginmod pwdlen <最小> <最大>` | **设置新的密码长度限制**，范围 1–128 | 管理员（OP，permission level ≥ 2） |
 
-- 密码长度 **4 – 32** 个字符
+- 密码长度默认为 **4 – 32** 个字符（管理员可通过 `/loginmod pwdlen` 动态调整）
 - 两次输入的密码必须一致
 - 登录失败会有提示，不会踢出玩家
+- 管理员命令设置后会**自动保存**到服务器目录下的 `loginmod/loginmod_config.json`，下次开服自动生效
 
 ---
 
@@ -233,7 +236,10 @@ A: 服务端启动目录下的 `loginmod/loginmod_accounts.json`。
 A: 采用 SHA-256 + 随机 salt + 千次迭代哈希，数据库泄露不会还原出原始密码。
 
 **Q: 可以改密码长度限制吗？**  
-A: 可以，修改 `src/main/java/com/loginmod/auth/AuthData.java` 中 `isValidPassword` 的长度判断即可。
+A: 可以，**使用管理员账号（OP）在游戏内执行命令**：
+- 查看当前限制：`/loginmod pwdlen`
+- 设置新的限制：`/loginmod pwdlen <最小> <最大>`（范围 1–128）
+设置后会自动保存到 `loginmod/loginmod_config.json`，下次开服自动生效。
 
 **Q: 忘记密码怎么办？**  
 A: 直接在服务端删除 `loginmod/loginmod_accounts.json` 中对应用户的那一条记录，玩家重新注册即可。

@@ -25,9 +25,41 @@ public class AuthData {
     private static final Map<String, Account> ACCOUNTS = new ConcurrentHashMap<>();
     private static final Map<String, Boolean> LOGGED_IN = new ConcurrentHashMap<>();
     private static final String DATA_FILE = "loginmod_accounts.json";
+    private static final String CONFIG_FILE = "loginmod_config.json";
     private static File dataFile;
+    private static File configFile;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final SecureRandom RANDOM = new SecureRandom();
+
+    // ================= 可配置项 =================
+    // 默认值：最小 4 位，最大 32 位。
+    // 管理员可通过游戏内命令 /loginmod pwdlen <最小> <最大> 修改，
+    // 修改后会自动保存到 loginmod_config.json，下次开服自动生效。
+    private static volatile int minPasswordLength = 4;
+    private static volatile int maxPasswordLength = 32;
+
+    public static int getMinPasswordLength() { return minPasswordLength; }
+    public static int getMaxPasswordLength() { return maxPasswordLength; }
+
+    /** 返回形如 "4-32" 的当前密码长度限制描述。 */
+    public static String getPasswordLengthRange() {
+        return minPasswordLength + "-" + maxPasswordLength;
+    }
+
+    /**
+     * 管理员设置新的密码长度限制。
+     * 会做合法性校验：1 ≤ 最小 ≤ 最大 ≤ 128。
+     * 返回一条可直接显示给玩家的中文消息。
+     */
+    public static synchronized String setPasswordLengthLimits(int newMin, int newMax) {
+        if (newMin < 1) return "最小密码长度不能小于 1 位！";
+        if (newMax > 128) return "最大密码长度不能大于 128 位！";
+        if (newMin > newMax) return "最小长度不能大于最大长度！";
+        minPasswordLength = newMin;
+        maxPasswordLength = newMax;
+        saveConfig();
+        return "已设置密码长度限制为 " + minPasswordLength + "-" + maxPasswordLength + " 位（已保存到配置文件）。";
+    }
 
     public static synchronized void init(MinecraftServer server) {
         File saveDir = new File(server.getServerDirectory(), "loginmod");
@@ -35,6 +67,8 @@ public class AuthData {
             saveDir.mkdirs();
         }
         dataFile = new File(saveDir, DATA_FILE);
+        configFile = new File(saveDir, CONFIG_FILE);
+        loadConfig();
         load();
     }
 
@@ -115,6 +149,62 @@ public class AuthData {
         return ACCOUNTS.size();
     }
 
+    // ================= 配置文件加载/保存 (loginmod_config.json) =================
+    //
+    // 独立于账户数据存储，内容很简单：
+    //   {
+    //     "minPasswordLength": 4,
+    //     "maxPasswordLength": 32
+    //   }
+    //
+    // 文件不存在时使用默认值并自动创建。
+
+    private static void loadConfig() {
+        if (configFile == null || !configFile.exists()) {
+            LoginMod.LOGGER.info("[LoginMod] 未找到配置文件，使用默认密码长度 {} 位", getPasswordLengthRange());
+            saveConfig();
+            return;
+        }
+        try (FileReader reader = new FileReader(configFile, StandardCharsets.UTF_8)) {
+            AuthConfig cfg = GSON.fromJson(reader, AuthConfig.class);
+            if (cfg != null) {
+                int newMin = (cfg.minPasswordLength >= 1 && cfg.minPasswordLength <= 128) ? cfg.minPasswordLength : 4;
+                int newMax = (cfg.maxPasswordLength >= 1 && cfg.maxPasswordLength <= 128) ? cfg.maxPasswordLength : 32;
+                if (newMin > newMax) { newMin = 4; newMax = 32; }
+                minPasswordLength = newMin;
+                maxPasswordLength = newMax;
+                LoginMod.LOGGER.info("[LoginMod] 已加载配置：密码长度限制为 {} 位", getPasswordLengthRange());
+            } else {
+                saveConfig();
+            }
+        } catch (IOException e) {
+            LoginMod.LOGGER.error("[LoginMod] 加载配置文件失败，使用默认值", e);
+        }
+    }
+
+    private static synchronized void saveConfig() {
+        if (configFile == null) return;
+        try {
+            if (configFile.getParentFile() != null && !configFile.getParentFile().exists()) {
+                configFile.getParentFile().mkdirs();
+            }
+            AuthConfig cfg = new AuthConfig();
+            cfg.minPasswordLength = minPasswordLength;
+            cfg.maxPasswordLength = maxPasswordLength;
+            try (FileWriter writer = new FileWriter(configFile, StandardCharsets.UTF_8)) {
+                GSON.toJson(cfg, writer);
+            }
+        } catch (IOException e) {
+            LoginMod.LOGGER.error("[LoginMod] 保存配置文件失败", e);
+        }
+    }
+
+    /** 纯数据类，Gson 用来读写 loginmod_config.json */
+    private static class AuthConfig {
+        int minPasswordLength = 4;
+        int maxPasswordLength = 32;
+    }
+
     // ================= 密码相关 (SHA-256 + salt + 1000 次迭代哈希) =================
     //
     // 「千次迭代」的实现原理：
@@ -181,6 +271,8 @@ public class AuthData {
     }
 
     public static boolean isValidPassword(String password) {
-        return password != null && password.length() >= 4 && password.length() <= 32;
+        return password != null
+            && password.length() >= minPasswordLength
+            && password.length() <= maxPasswordLength;
     }
 }
